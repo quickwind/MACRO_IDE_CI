@@ -77,10 +77,13 @@ String executeCmd(cmdStr, description="") {
 }
 
 void notifyError() {
+    notify "Failed with log: <br/>" + allLogs.toString()
+}
+
+void notify(String msg) {
     def monitorJob = hudson.model.Hudson.getInstance().getItem(Config.instance.params.MONITOR_JOB)
     def cause = new hudson.model.Cause.RemoteCause(
-        hudson.model.Hudson.getInstance().getRootUrl() + "${project.url}groovyScripttriggerPollLog/", 
-        "Failed with log: <br/>" + allLogs.toString())
+        hudson.model.Hudson.getInstance().getRootUrl() + "${project.url}groovyScripttriggerPollLog/", msg)
     def causeAction = new hudson.model.CauseAction(cause)
     
     hudson.model.Hudson.getInstance().getQueue().schedule2(monitorJob, 0, causeAction)
@@ -171,6 +174,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
                 info "Found remote old build dir ${oldDir.absolutePath}, remove it..."
                 executeAndJustNotifyError("deleting remote dir ${oldDir.absolutePath}") {
                     info "Deleting old dir ${oldDir.absolutePath}..."
+                    notify "Found remote old build dir ${oldDir.absolutePath}, remove it..."
                     ant.delete dir:oldDir
                 } 
                 if(!hasNewIdeCodeChange && ideBuildManagable) {
@@ -191,6 +195,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
             if(latestBuildDir) {
                 info "Newer build has been identified as ${latestBuildDir.name}, removing older one ${buildDir.absolutePath}..."
                 executeAndJustNotifyError("deleting remote dir ${buildDir.absolutePath}") {
+                    notify "Newer build has been identified as ${latestBuildDir.name}, removing older one ${buildDir.absolutePath}..."
                     ant.delete dir:buildDir
                 } 
                 if(!hasNewIdeCodeChange && ideBuildManagable) {
@@ -243,6 +248,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
                         } else {
                             info "No update in this build ${buildDir.absolutePath}, removing it from remote..."
                             executeAndJustNotifyError("deleting remote dir ${buildDir.absolutePath}") {
+                                notify "No update in this build ${buildDir.absolutePath}, removing it from remote..."
                                 ant.delete dir:buildDir
                             } 
                             if(!hasNewIdeCodeChange && ideBuildManagable) {
@@ -268,6 +274,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
 
         info "Remove remote dir ${latestBuildDir.absolutePath} after copy..."
         executeAndJustNotifyError("deleting remote dir ${latestBuildDir.absolutePath}") {
+            notify "Remove remote dir ${latestBuildDir.absolutePath} after copy..."
             ant.delete dir:latestBuildDir
         } 
         

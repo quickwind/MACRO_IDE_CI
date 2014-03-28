@@ -9,8 +9,19 @@ System.setOut manager.listener.logger
 try {
     buildResult = manager.build.result
     buildNumber = manager.build.number
-
+    def unstable = false
+    
     if(buildResult.toString() == 'SUCCESS') {
+        info "Determine whether there are test failure(s)..."        
+        if(manager.build.log.find(/\[ERROR\] There are test failures\./)  || 
+        manager.build.log.find(/Smoke test for MACRO syntax validation \- failed!/)) {
+           info "Build passed but there are test failure(s), mark the build as unstable..."
+           manager.addWarningBadge("Test Failed")
+           manager.createSummary("warning.gif").appendText("<h3>There are test failures, please check console for details!</h3>", false, false, false, "red")
+           unstable = true
+           manager.buildUnstable()           
+        }
+        
         info "Publish build outputs..."
         if(! publish()) {
             error "Publish build failed"
@@ -24,7 +35,7 @@ try {
         
         def causes = ""
         manager.build.causes.each { causes = causes + it.getShortDescription() }
-        if(causes.contains(Config.instance.params.NEW_SUBMIT_CAUSE_TITLE) && Config.instance.params.CODE_SUBMIT) {
+        if(!unstable && causes.contains(Config.instance.params.NEW_SUBMIT_CAUSE_TITLE) && Config.instance.params.CODE_SUBMIT) {
             info "Build is triggered by changelogs, submit them..."
             manager.createSummary("star.png").appendText("<h4>Feature stream baseline: ${Config.instance.params.BASELINE_PREFIX}_${buildNumber}<h4/>", false, true, true, "green")
             if(! submit()) {
