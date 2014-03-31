@@ -115,7 +115,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
     
     try {
         info "Updating Info Model files..."
-        def imFileNames = ['allinternaltokens.txt', 'alltokens.txt', 'networkobject.json', 'system.json', 'visual.json']
+        def imFileNames = Config.instance.params.IM_FILE_LIST
         def CurrentBuildVer = ""
         def locaIMabsolutePath = Config.instance.params.FEATURE_STREAM_PATH + System.getProperty("file.separator") + Config.instance.params.LOCAL_IM_DIR
         def inmBuildInfoFile = new File(locaIMabsolutePath + System.getProperty("file.separator") + "buildinfo.dat")

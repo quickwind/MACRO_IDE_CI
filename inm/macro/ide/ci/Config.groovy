@@ -25,6 +25,7 @@ final class Config {
         NEW_SUBMIT_CAUSE_TITLE:     "New submits:",
         REMOTE_IM_DIR:              "\\\\cnsh2wfs02\\dfs\\proj\\shanghai\\8000\\local\\DO_NOT_TOUCH\\MACRO_IM_Builds",
         LOCAL_IM_DIR:               "plugins\\com.tellabs.inm.macro\\json",
+        IM_FILE_LIST:               ['allinternaltokens.txt', 'alltokens.txt', 'networkobject.json', 'system.json', 'visual.json'],
         MONITOR_JOB:                "Exception_listener"
     ].asImmutable()
 
