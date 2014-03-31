@@ -26,6 +26,11 @@ final class Config {
         REMOTE_IM_DIR:              "\\\\cnsh2wfs02\\dfs\\proj\\shanghai\\8000\\local\\DO_NOT_TOUCH\\MACRO_IM_Builds",
         LOCAL_IM_DIR:               "plugins\\com.tellabs.inm.macro\\json",
         IM_FILE_LIST:               ['allinternaltokens.txt', 'alltokens.txt', 'networkobject.json', 'system.json', 'visual.json'],
+        IM_CHECK_JOB:               "MACRO_IDE_IM_CHECK",
+        BUILD_TRIGGER_JOB:          "MACRO_IDE_build_trigger_check",
+        IDE_BUILD_JOB:              "MACRO_IDE",
+        IDE_BUILD_PARAM_IM_VERSION: "NEW_IM_VERSION",
+        IDE_BUILD_PARAM_NEW_SUBMIT: "NEW_IDE_CODE_SUBMITS",
         MONITOR_JOB:                "Exception_listener"
     ].asImmutable()
 

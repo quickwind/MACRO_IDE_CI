@@ -9,7 +9,9 @@ System.setOut manager.listener.logger
 try {
     buildResult = manager.build.result
     buildNumber = manager.build.number
-    def unstable = false
+    newImVersion = manager.build.buildVariableResolver.resolve(Config.instance.params.IDE_BUILD_PARAM_IM_VERSION)
+    newSubmits = manager.build.buildVariableResolver.resolve(Config.instance.params.IDE_BUILD_PARAM_NEW_SUBMIT)?.trim()
+    unstable = false
     
     if(buildResult.toString() == 'SUCCESS') {
         info "Determine whether there are test failure(s)..."        
@@ -20,6 +22,11 @@ try {
            manager.createSummary("warning.gif").appendText("<h3>There are test failures, please check console for details!</h3>", false, false, false, "red")
            unstable = true
            manager.buildUnstable()           
+        }
+        
+        if(!newImVersion && !newSubmits) {
+            info "This build is triggered manually, do not publish and submit..."
+            return true
         }
         
         info "Publish build outputs..."
@@ -33,9 +40,7 @@ try {
             manager.createSummary("installer.png").appendText("<h4>Build has been published.<h4/>", false, true, true, "green")
         }
         
-        def causes = ""
-        manager.build.causes.each { causes = causes + it.getShortDescription() }
-        if(!unstable && causes.contains(Config.instance.params.NEW_SUBMIT_CAUSE_TITLE) && Config.instance.params.CODE_SUBMIT) {
+        if(!unstable && newSubmits && Config.instance.params.CODE_SUBMIT) {
             info "Build is triggered by changelogs, submit them..."
             manager.createSummary("star.png").appendText("<h4>Feature stream baseline: ${Config.instance.params.BASELINE_PREFIX}_${buildNumber}<h4/>", false, true, true, "green")
             if(! submit()) {

@@ -3,24 +3,27 @@ import static inm.macro.ide.ci.Logger.*
 import static inm.macro.ide.ci.Utils.*
 
 //Init logging...
-logAppender = log.&info
+logAppender = manager.listener.logger.&println
 debugLevel = Config.instance.params.DEBUG_LOGGING
-allLogs = new StringBuilder()
+System.setOut manager.listener.logger
+allErrorLogs = new StringBuilder()
 inm.macro.ide.ci.Logger.metaClass.'static'.invokeMethod = { String name, args ->
     def metaMethod = inm.macro.ide.ci.Logger.metaClass.getStaticMetaMethod(name, args)
     def result = null
     if(metaMethod) {
         result = metaMethod.invoke(delegate, args)
         if(name == "error") {
-            allLogs.append(result).append('<br/>')
+            allErrorLogs.append(result).append('<br/>')
         }
     }    
     result
 }
 
-try {
-    info "Next build number: ${project.nextBuildNumber}"
 
+try {
+    ideBuildJob = hudson.model.Hudson.getInstance().getItem(Config.instance.params.IDE_BUILD_JOB)
+    info "Next IDE build number: ${ideBuildJob.nextBuildNumber}"
+    
     Map checkScmResult = checkSubmits()
     if(checkScmResult.integrationConflict) {
         error "There is clearcase conflict, skip this build..."
@@ -39,25 +42,27 @@ try {
             updateBuildInfo(checkScmResult.newRebasedInmBuild)
         }
         //Populate cause...
-        populateCause(checkScmResult, updateIMResult)
+        triggerIdeBuild(checkScmResult, updateIMResult)
         return true
     } else {
         info "No new submit nor new IM version, no build is needed..."
         return false
     }
-} catch (Exception e) {
+    
+    return true
+} catch(Exception e) {
     if(e instanceof MacroIdeCheckedException) return false   //skip already reported errors...
     
-    error "Exception caught during execution: "
+    error "Exception caught: "
     error e.toString()
     e.getStackTrace().each {
         error it.toString()
     }
-    notifyError()
+    manager.addErrorBadge("Post-build exception!")
+    manager.createSummary("error.gif").appendText("<h4>Post-build processing exception, please check console log.<h4/>", false, true, false, "red")
+    manager.buildUnstable()
     return false
 }
-
-return true
 
 //=============== function definition =====================
 String executeCmd(cmdStr, description="") {
@@ -68,7 +73,6 @@ String executeCmd(cmdStr, description="") {
         {line -> debug line},   //standard output logging appender
         {line -> error line},   //error output logging appender
         {                       //Error handling logic
-            notifyError()
             if(description != null && description.trim().size() > 0) error description + "...Failed!"
             throw new MacroIdeCheckedException("Fatal error, exit...")
         }
@@ -77,25 +81,23 @@ String executeCmd(cmdStr, description="") {
     return result.trim()
 }
 
-void notifyError() {
-    notifyMonitor "Failed with log: <br/>" + allLogs.toString(), "${project.url}groovyScripttriggerPollLog/"
-}
-
-void populateCause(Map checkScmResult, Map updateIMResult) {
-    def causes = new StringBuilder()
-    
+void triggerIdeBuild(Map checkScmResult, Map updateIMResult) {
     if((checkScmResult.newSubmitsFound && checkScmResult.newSubmitsIntegrated) || updateIMResult.newIMfound) {
-        causes.append("<" + "cause" + "><b>Triggered by: </b><br>")
+        def buildParameters = new ArrayList()        
+        
         if(checkScmResult.newSubmitsFound && checkScmResult.newSubmitsIntegrated) {
-            causes.append("&nbsp;&nbsp;${Config.instance.params.NEW_SUBMIT_CAUSE_TITLE}<ul>").append(System.getProperty("line.separator"))
-            checkScmResult.changeLogs.each { causes.append("<li>" + it + "</li>").append(System.getProperty("line.separator")) }
-            causes.append("</ul>").append(System.getProperty("line.separator"))
+            buildParameters << new hudson.model.TextParameterValue(
+                                    Config.instance.params.IDE_BUILD_PARAM_NEW_SUBMIT,
+                                    checkScmResult.changeLogs.join("\n"))
         }
         if(updateIMResult.newIMfound) {
-            causes.append("&nbsp;&nbsp;New MACRO Info Model for: ${updateIMResult.newIMversion}")
+            buildParameters << new hudson.model.StringParameterValue(
+                                    Config.instance.params.IDE_BUILD_PARAM_IM_VERSION, 
+                                    updateIMResult.newIMversion)            
         }
-        causes.append("<" + "/" + "cause>").append(System.getProperty("line.separator"))    
-        info causes.toString()
+        info "Schedule IDE build..."
+        
+        result = triggerBuild(Config.instance.params.IDE_BUILD_JOB, manager, buildParameters)
     }
 }
 
@@ -166,7 +168,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
                 info "Found remote old build dir ${oldDir.absolutePath}, remove it..."
                 executeAndJustNotifyError("deleting remote dir ${oldDir.absolutePath}") {
                     info "Deleting old dir ${oldDir.absolutePath}..."
-                    notify "Found remote old build dir ${oldDir.absolutePath}, remove it..."
+                    notifyInfo "Found remote old build dir ${oldDir.absolutePath}, remove it..."
                     ant.delete dir:oldDir
                 } 
                 if(!hasNewIdeCodeChange && ideBuildManagable) {
@@ -187,7 +189,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
             if(latestBuildDir) {
                 info "Newer build has been identified as ${latestBuildDir.name}, removing older one ${buildDir.absolutePath}..."
                 executeAndJustNotifyError("deleting remote dir ${buildDir.absolutePath}") {
-                    notify "Newer build has been identified as ${latestBuildDir.name}, removing older one ${buildDir.absolutePath}..."
+                    notifyInfo "Newer build has been identified as ${latestBuildDir.name}, removing older one ${buildDir.absolutePath}..."
                     ant.delete dir:buildDir
                 } 
                 if(!hasNewIdeCodeChange && ideBuildManagable) {
@@ -240,7 +242,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
                         } else {
                             info "No update in this build ${buildDir.absolutePath}, removing it from remote..."
                             executeAndJustNotifyError("deleting remote dir ${buildDir.absolutePath}") {
-                                notify "No update in this build ${buildDir.absolutePath}, removing it from remote..."
+                                notifyInfo "No update in this build ${buildDir.absolutePath}, removing it from remote..."
                                 ant.delete dir:buildDir
                             } 
                             if(!hasNewIdeCodeChange && ideBuildManagable) {
@@ -266,7 +268,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
 
         info "Remove remote dir ${latestBuildDir.absolutePath} after copy..."
         executeAndJustNotifyError("deleting remote dir ${latestBuildDir.absolutePath}") {
-            notify "Remove remote dir ${latestBuildDir.absolutePath} after copy..."
+            notifyInfo "Remove remote dir ${latestBuildDir.absolutePath} after copy..."
             ant.delete dir:latestBuildDir
         } 
         
@@ -362,7 +364,7 @@ Map checkSubmits() {
             }
             
             info "Check activities...Finished"
-            if(allLogs.toString().contains("The specified integration activity is still in progress")) {
+            if(allErrorLogs.toString().contains("The specified integration activity is still in progress")) {
                 error "There is some conflict with some inprogress pushacts, cancel further clearcase operations..."
                 notifyError()
                 result.integrationConflict = true
@@ -414,7 +416,7 @@ Map checkSubmits() {
             }
 
             //make baseline...
-            def newBaseline = "${Config.instance.params.BASELINE_PREFIX}_${project.nextBuildNumber}"
+            def newBaseline = "${Config.instance.params.BASELINE_PREFIX}_${ideBuildJob.nextBuildNumber}"
             executeCmd(Config.instance.ccCmds.MKBASELINE +  "${vobName} ${newBaseline}", "Make new baseline")
 
             executeCmd(Config.instance.ccCmds.LABEL_BASELINE +  " ${newBaseline}@${vobName}", "Labeling new baseline")
@@ -477,4 +479,12 @@ boolean checkAndCreateJunction(List ideBuildList, String buildLabel) {
     }
     
     return result
+}
+
+void notifyError() {
+    notifyMonitor "Error log: <br/>" + allErrorLogs.toString(), manager.build.url
+}
+
+void notifyInfo(String msg) {
+    notifyMonitor msg, manager.build.url
 }
