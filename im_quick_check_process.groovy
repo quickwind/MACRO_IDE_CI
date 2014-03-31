@@ -61,76 +61,15 @@ boolean checkIM() {
             }
         } 
         
-        def allIdeBuildList = []
-        def ideBuildManagable = true
-        
         def newerBuildDirs = allRemoteBuilds.findAll { it > new InmBuildInfo(CurrentBuildVer) }.sort().reverse().collect { it.dir }
         
         if(!newerBuildDirs) {   
             info "No new INM build available, returning..."
             return false
-        }
-        
-        debug "Iterate all the newer build dir to get the latest build dir..."
-        def latestBuildDir = null
-        def latestBuildDirHasUpdate = false
-        newerBuildDirs.each{ buildDir -> 
-            if(!latestBuildDir) {
-                info "Checking directory for build ${buildDir.absolutePath}..."                
-                def dirSize = 0
-                def retryNum = 3
-                debug "Dir size: " + directorySize(buildDir)
-                while(dirSize != directorySize(buildDir) && retryNum > 0) {
-                    dirSize = directorySize(buildDir)
-                    sleep 5000 //sleep a while and check again the size to make sure it is stable...
-                    retryNum = retryNum -1
-                }
-                sleep 5000 //sleep another x secs to make sure it is really stable after at least 2 waits...
-                if(dirSize != directorySize(buildDir)) {
-                    info "${buildDir.absolutePath} directory is not stable, skipping..."
-                } else {
-                    boolean missingFile = false
-                    boolean hasUpdate = false
-                    
-                    imFileNames.each { imFile -> 
-                        def remotefile = new File(buildDir.absolutePath + System.getProperty("file.separator") + imFile)
-                        def localfile = new File(locaIMabsolutePath + System.getProperty("file.separator") + imFile)
-                        if(!remotefile.exists() || !remotefile.canRead()) {
-                            error "IM file ${remotefile.absolutePath} is missing or not readable."
-                            missingFile = true
-                        } else if(hasUpdate == false){
-                            if(localfile.exists()) {
-                                ant.checksum(file:remotefile, property: "${imFile}_remote" )
-                                ant.checksum(file:localfile, property: "${imFile}_local" )
-                                if( ant.project.properties."${imFile}_remote" != ant.project.properties."${imFile}_local" ) {
-                                    debug "There is update for ${imFile}, checksums are " + ant.project.properties."${imFile}_remote" + ", and " + ant.project.properties."${imFile}_local"
-                                    hasUpdate = true
-                                }
-                            } else {
-                                hasUpdate = true
-                            }
-                        }
-                    }
-                    if(missingFile) {
-                        //Don't know what to do, just notify build manager and ignore it...
-                        unstable "There are some IM files missing from remote"
-                    } else {
-                        latestBuildDir = buildDir
-                        if(hasUpdate) {                            
-                            latestBuildDirHasUpdate = true
-                        }
-                    }                    
-                }
-            }
-        }
-        
-        if(latestBuildDirHasUpdate) {
-            info "There is IM update for ${latestBuildDir}"
         } else {
-            info "There is no IM update from remote"
+            info "There are new INM build available, trigger further checking..."
+            return true
         }
-        
-        return latestBuildDirHasUpdate
     } catch (e) {
         error e.message
         return false
