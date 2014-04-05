@@ -481,10 +481,16 @@ String unpackRemoteBuild(File remoteDir) {
         def ant = new AntBuilder()
         ant.unzip(src:zipFile, dest:"${remoteDir.canonicalPath}")
         String resultDir = ""
-        remoteDir.eachFileMatch(~/.*\.json/) {
-            resultDir = it.parentFile.canonicalPath
+        remoteDir..eachFileRecurse(FileType.FILES) {
+            if(!resultDir && it.name =~ /.*\.json$/) {
+                resultDir = it.parentFile.canonicalPath
+            }
         }
-        return resultDir
+        if(resultDir) {
+            return resultDir
+        } else {
+            return remoteDir.canonicalPath
+        }
     } else {
         info "No zip file, just return current dir..."
         return remoteDir.canonicalPath
