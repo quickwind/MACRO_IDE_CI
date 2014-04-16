@@ -34,7 +34,8 @@ try {
         }
         
         if(newSubmits) {
-            manager.createSummary("star-gold.png").appendText("<h4>New submits:\n $newSubmits.<h4/>", false, true, true, "green")
+            def newSubmitsFormated = newSubmits.split(Config.instance.params.NEW_SUBMIT_DELIMITER).join("\n ")
+            manager.createSummary("star-gold.png").appendText("<h4>New submits:\n ${newSubmitsFormated}<h4/>", false, true, true, "green")
         }
         
         info "Publish build outputs..."

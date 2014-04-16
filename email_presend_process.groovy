@@ -13,7 +13,7 @@ if(newImVersion || newSubmits) {
     def trigger = '<br><b>Triggered by: </b><br>'
     if(newSubmits) {
         trigger += "&nbsp;&nbsp;New submits:<o:p></o:p></span></p><ul>"
-        newSubmits.eachLine {
+        newSubmits.split(Config.instance.params.NEW_SUBMIT_DELIMITER).each {
             trigger += "<li>${it}</li>"
         }
         trigger += "</ul>"

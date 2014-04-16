@@ -88,7 +88,7 @@ void triggerIdeBuild(Map checkScmResult, Map updateIMResult) {
         if(checkScmResult.newSubmitsFound && checkScmResult.newSubmitsIntegrated) {
             buildParameters << new hudson.model.TextParameterValue(
                                     Config.instance.params.IDE_BUILD_PARAM_NEW_SUBMIT,
-                                    checkScmResult.changeLogs.join("\n"))
+                                    checkScmResult.changeLogs.join(Config.instance.params.NEW_SUBMIT_DELIMITER))
         }
         if(updateIMResult.newIMfound) {
             buildParameters << new hudson.model.StringParameterValue(
@@ -184,6 +184,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
         
         debug "Iterate all the newer build dir to get the latest build dir..."
         def latestBuildDir = null
+        def latestBuildFinalDir = null
         def latestBuildDirHasUpdate = false
         newerBuildDirs.each{ buildDir -> 
             if(latestBuildDir) {
@@ -196,24 +197,13 @@ Map updateIM(boolean hasNewIdeCodeChange) {
                     checkAndCreateJunction(allIdeBuildList, buildDir.name)
                 }
             } else {
-                info "Checking directory for build ${buildDir.absolutePath}..."                
-                def dirSize = 0
-                def retryNum = 3
-                debug "Dir size: " + directorySize(buildDir)
-                while(dirSize != directorySize(buildDir) && retryNum > 0) {
-                    dirSize = directorySize(buildDir)
-                    sleep 5000 //sleep a while and check again the size to make sure it is stable...
-                    retryNum = retryNum -1
-                }
-                sleep 5000 //sleep another x secs to make sure it is really stable after at least 2 waits...
-                if(dirSize != directorySize(buildDir)) {
-                    info "${buildDir.absolutePath} directory is not stable, skipping..."
-                } else {
+                if(remoteBuildIsStable(buildDir)) {
+                    def remoteImFinalDir = unpackRemoteBuild(buildDir)
                     boolean missingFile = false
                     boolean hasUpdate = false
                     
                     imFileNames.each { imFile -> 
-                        def remotefile = new File(buildDir.absolutePath + System.getProperty("file.separator") + imFile)
+                        def remotefile = new File(remoteImFinalDir + System.getProperty("file.separator") + imFile)
                         def localfile = new File(locaIMabsolutePath + System.getProperty("file.separator") + imFile)
                         if(!remotefile.exists() || !remotefile.canRead()) {
                             error "IM file ${remotefile.absolutePath} is missing or not readable."
@@ -236,6 +226,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
                         notifyError()
                     } else {
                         latestBuildDir = buildDir
+                        latestBuildFinalDir = remoteImFinalDir
                         if(hasUpdate) {                            
                             latestBuildDirHasUpdate = true
                             //Cleanup of this dir will be defered after copy is done...
@@ -262,7 +253,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
         
         info "There are IM changes, copying the latest IM files from dir ${latestBuildDir.absolutePath}..."
         ant.copy (todir:locaIMabsolutePath, overwrite: true) {
-            fileset dir:latestBuildDir
+            fileset dir:latestBuildFinalDir
         }
         updateBuildInfo(latestBuildDir.name)
 
@@ -278,7 +269,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
     } catch(ex) {
         error "Exception while updating IM file: ${ex.message}"
         notifyError()
-        return false
+        return result.asImmutable()
     }
 }
 
@@ -479,6 +470,58 @@ boolean checkAndCreateJunction(List ideBuildList, String buildLabel) {
     }
     
     return result
+}
+
+String unpackRemoteBuild(File remoteDir) {
+    info "Checking whether there is zip file..."
+    File zipFile = null
+    remoteDir.eachFileMatch(~/.*\.zip/) { zipFile = it }
+    if(zipFile) {
+        info "There is zip file ${zipFile.name}, unzip it..."
+        def ant = new AntBuilder()
+        ant.unzip(src:zipFile, dest:"${remoteDir.canonicalPath}")
+        String resultDir = ""
+        remoteDir.eachFileRecurse(groovy.io.FileType.FILES) {
+            if(!resultDir && it.name =~ /.*\.json$/) {
+                resultDir = it.parentFile.canonicalPath
+            }
+        }
+        if(resultDir) {
+            return resultDir
+        } else {
+            return remoteDir.canonicalPath
+        }
+    } else {
+        info "No zip file, just return current dir..."
+        return remoteDir.canonicalPath
+    }
+}
+
+boolean remoteBuildIsStable(File remoteDir)  {
+    info "Checking directory for build ${remoteDir.absolutePath}..."               
+                
+    if(Config.instance.params.REMOTE_IM_READY_FLAG_FILE) {
+        //Use flag file to mark the build stable...
+        def flagFile = new File(remoteDir.canonicalPath + System.getProperty("file.separator") + Config.instance.params.REMOTE_IM_READY_FLAG_FILE)
+        return flagFile.exists()
+    } else {   
+        //Old  way...
+        def dirSize = 0
+        def retryNum = 3
+        debug "Dir size: " + directorySize(remoteDir)
+        while(dirSize != directorySize(remoteDir) && retryNum > 0) {
+            dirSize = directorySize(remoteDir)
+            sleep 5000 //sleep a while and check again the size to make sure it is stable...
+            retryNum = retryNum -1
+        }
+        sleep 5000 //sleep another x secs to make sure it is really stable after at least 2 waits...
+        if(dirSize != directorySize(remoteDir)) {
+            info "${remoteDir.absolutePath} directory is not stable, skipping..."
+            return false
+        } else {
+            return true
+        }
+    }
 }
 
 void notifyError() {
