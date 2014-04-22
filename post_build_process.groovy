@@ -153,8 +153,9 @@ boolean publish() {
                     delete (includeemptydirs: 'true') {
                         fileset(dir:"${Config.instance.params.HTTP_PUBLISH_DIR}${pathDelimiter}builds${pathDelimiter}${inmBuildInfo}", includes:'**/*')
                     }                                        
-                    tar (
-                        destfile:"${Config.instance.params.HTTP_PUBLISH_DIR}${pathDelimiter}builds${pathDelimiter}${inmBuildInfo}${pathDelimiter}macro-ide-all-in-one-package.tar", 
+                    zip (
+                        compress:'false',
+                        destfile:"${Config.instance.params.HTTP_PUBLISH_DIR}${pathDelimiter}builds${pathDelimiter}${inmBuildInfo}${pathDelimiter}macro-ide-all-in-one-package.zip", 
                         basedir:"${Config.instance.params.HTTP_PUBLISH_DIR}${pathDelimiter}latest"
                     )
                     checksum (fileext:".md5" ){
