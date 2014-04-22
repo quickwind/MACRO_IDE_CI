@@ -93,7 +93,7 @@ boolean publish() {
             copy (todir:"${Config.instance.params.HTTP_PUBLISH_DIR}${pathDelimiter}latest${pathDelimiter}repository") {
                 fileset(dir:"${Config.instance.params.FEATURE_STREAM_PATH}${pathDelimiter}${Config.instance.params.REPOSITORY_PATH}", includes:'**/*')
             }
-            /*if(Config.instance.params.IDE_USER_GUIDE_PDF_CONVERTION) {
+            if(Config.instance.params.IDE_USER_GUIDE_PDF_CONVERTION) {
                 try {
                     convertWord2PDF(
                         "${Config.instance.params.FEATURE_STREAM_PATH}${pathDelimiter}${Config.instance.params.IDE_DOC_PATH}${pathDelimiter}${Config.instance.params.IDE_USER_GUIDE_DOC}",
@@ -105,10 +105,10 @@ boolean publish() {
                     copy (todir:"${Config.instance.params.HTTP_PUBLISH_DIR}${pathDelimiter}latest", 
                         file:"${Config.instance.params.FEATURE_STREAM_PATH}${pathDelimiter}${Config.instance.params.IDE_DOC_PATH}${pathDelimiter}${Config.instance.params.IDE_USER_GUIDE_DOC}") 
                 }
-            } else {  */
+            } else {  /**/
                 copy (todir:"${Config.instance.params.HTTP_PUBLISH_DIR}${pathDelimiter}latest",
                     file:"${Config.instance.params.FEATURE_STREAM_PATH}${pathDelimiter}${Config.instance.params.IDE_DOC_PATH}${pathDelimiter}${Config.instance.params.IDE_USER_GUIDE_DOC}") 
-            //}
+            }
             echo "Publish to latest directory...OK"
         }
         

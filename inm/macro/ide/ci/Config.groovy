@@ -14,7 +14,7 @@ final class Config {
         STANDALONE_PRODUCT_PATH:    "releng\\com.tellabs.inm.macro.product\\target\\products",
         IDE_DOC_PATH:               "doc",
         IDE_USER_GUIDE_DOC:         "Macro_IDE_user_guide.doc",
-        IDE_USER_GUIDE_PDF_CONVERTION: "true",
+        IDE_USER_GUIDE_PDF_CONVERTION: true,
         IDE_USER_GUIDE_PDF:         "Macro_IDE_user_guide.pdf",
         INMTOOLS_BAT:               "C:\\InmTools\\INM-SR6.0.bat",
         IDE_BUILD_ONLINE_MODE:      true,

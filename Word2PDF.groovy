@@ -29,7 +29,9 @@ boolean saveWordAsPDF(String filePath,String outFile){
     def wordCom=new ActiveXComponent("Word.Application")
     try{
         Dispatch wrdDocs=Dispatch.get(wordCom,"Documents").toDispatch()
-        Dispatch wordDoc=Dispatch.call(wrdDocs,"Open",filePath, new Variant(true),new Variant(false)).toDispatch()
+        //Dispatch wordDoc=Dispatch.call(wrdDocs,"Open",filePath, new Variant(true),new Variant(false)).toDispatch()
+        Dispatch wordDoc=Dispatch.call(wrdDocs,"Open",filePath).toDispatch()
+        //Dispatch.put(wordCom, "Visible", new Variant(true))
         Dispatch.invoke(wordDoc,"ExportAsFixedFormat",Dispatch.Method,
                    [outFile,new Variant(17),new Variant(false),new Variant(0),new Variant(0),
                     new Variant(0),new Variant(0),new Variant(false),new Variant(true),
@@ -42,8 +44,9 @@ boolean saveWordAsPDF(String filePath,String outFile){
     }finally{
         if(wordCom!=null) {
             println "Releasing resouce..."
-            //wordCom.invoke("Quit",[] as Variant[])
-            Dispatch.call(wordCom, "Quit")
+            Dispatch.call(wordDoc, "Close",new Variant(false))
+            wordCom.invoke("Quit",[] as Variant[])
+            //Dispatch.call(wordCom, "Quit")
             wordCom=null
             ComThread.Release()
         }
