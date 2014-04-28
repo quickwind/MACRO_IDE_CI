@@ -206,7 +206,7 @@ Map updateIM(boolean hasNewIdeCodeChange) {
                         def remotefile = new File(remoteImFinalDir + System.getProperty("file.separator") + imFile)
                         def localfile = new File(locaIMabsolutePath + System.getProperty("file.separator") + imFile)
                         if(!remotefile.exists() || !remotefile.canRead()) {
-                            error "IM file ${remotefile.absolutePath} is missing or not readable."
+                            error "IM file ${imFile} is missing or not readable in directory ${remoteImFinalDir}."
                             missingFile = true
                         } else if(hasUpdate == false){
                             if(localfile.exists()) {
