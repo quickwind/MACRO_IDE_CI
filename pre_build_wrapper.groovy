@@ -1,3 +1,4 @@
+//Obsolete
 import org.codehaus.groovy.control.CompilerConfiguration
 
 buildLibPath = System.getenv("MACRO_IDE_CI_LIB_PATH")

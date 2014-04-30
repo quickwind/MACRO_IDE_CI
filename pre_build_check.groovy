@@ -1,3 +1,5 @@
+//Obsolete
+
 import inm.macro.ide.ci.*
 import static inm.macro.ide.ci.Logger.*
 import static inm.macro.ide.ci.Utils.*
