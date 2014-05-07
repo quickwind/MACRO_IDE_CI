@@ -188,6 +188,9 @@ Map updateIM(boolean hasNewIdeCodeChange) {
         def latestBuildDirHasUpdate = false
         newerBuildDirs.each{ buildDir -> 
             if(latestBuildDir) {
+                //Newer build is found, for the older ones, now just simply remove it and create junction/link to the previous build, 
+                //this may not be safe as there might be IM update in some older build dir, but just keep simple logic instead of initiate 
+                //build for these....hopefully we don't meet this situation. 
                 info "Newer build has been identified as ${latestBuildDir.name}, removing older one ${buildDir.absolutePath}..."
                 executeAndJustNotifyError("deleting remote dir ${buildDir.absolutePath}") {
                     notifyInfo "Newer build has been identified as ${latestBuildDir.name}, removing older one ${buildDir.absolutePath}..."
@@ -227,11 +230,24 @@ Map updateIM(boolean hasNewIdeCodeChange) {
                     } else {
                         latestBuildDir = buildDir
                         latestBuildFinalDir = remoteImFinalDir
+                        
                         if(hasUpdate) {                            
-                            latestBuildDirHasUpdate = true
-                            //Cleanup of this dir will be defered after copy is done...
-                        } else {
+                            latestBuildDirHasUpdate = true                            
+                            
+                            info "There are IM changes, copying the latest IM files from dir ${latestBuildDir.absolutePath}..."
+                            ant.copy (todir:locaIMabsolutePath, overwrite: true) {
+                                fileset dir:latestBuildFinalDir
+                            }
+                            updateBuildInfo(latestBuildDir.name)
+                            
+                            info "Remove remote dir ${latestBuildDir.absolutePath} after copy..."
+                            executeAndJustNotifyError("deleting remote dir ${latestBuildDir.absolutePath}") {
+                                notifyInfo "Remove remote dir ${latestBuildDir.absolutePath} after copy..."
+                                ant.delete dir:latestBuildDir
+                            } 
+                        } else {                            
                             info "No update in this build ${buildDir.absolutePath}, removing it from remote..."
+                            updateBuildInfo(latestBuildDir.name)
                             executeAndJustNotifyError("deleting remote dir ${buildDir.absolutePath}") {
                                 notifyInfo "No update in this build ${buildDir.absolutePath}, removing it from remote..."
                                 ant.delete dir:buildDir
@@ -248,21 +264,9 @@ Map updateIM(boolean hasNewIdeCodeChange) {
         if(!latestBuildDirHasUpdate){
             info "No valid IM version update found, returning..."
             return result.asImmutable()
-        }
-        result.newIMfound = true
+        }        
         
-        info "There are IM changes, copying the latest IM files from dir ${latestBuildDir.absolutePath}..."
-        ant.copy (todir:locaIMabsolutePath, overwrite: true) {
-            fileset dir:latestBuildFinalDir
-        }
-        updateBuildInfo(latestBuildDir.name)
-
-        info "Remove remote dir ${latestBuildDir.absolutePath} after copy..."
-        executeAndJustNotifyError("deleting remote dir ${latestBuildDir.absolutePath}") {
-            notifyInfo "Remove remote dir ${latestBuildDir.absolutePath} after copy..."
-            ant.delete dir:latestBuildDir
-        } 
-        
+        result.newIMfound = true        
         result.newIMversion = latestBuildDir.name
         
         return result.asImmutable()
